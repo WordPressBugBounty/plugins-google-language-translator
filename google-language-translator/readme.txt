@@ -6,7 +6,7 @@ Author URI: https://gtranslate.io/?xyz=3167
 Tags: translate wordpress, translate, translator, translation, language, multi language
 Requires at least: 4.5
 Tested up to: 7.1
-Stable tag: 7.0.1
+Stable tag: 7.0.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -188,6 +188,10 @@ If you want us to translate your website professionally or provide you a proofre
 Yes! Add the "notranslate" class to the HTML element containing your text. For example, the following text will be excluded from translation: <span class="notranslate">Hello World!</span>
 
 == Changelog ==
+= 7.0.2 =
+* Security: Fixed unauthorized admin notice updates by adding permission checks, nonce verification, and notice-key validation
+* Added request timeouts and error-code reporting for failed requests
+
 = 7.0.1 =
 * Replace the legacy Google Website Translator widget with the GTranslate website translation widget
 * Document the replacement widget's external services and free-service permitted-use conditions

@@ -252,9 +252,11 @@ if ( typeof Object.create !== 'function' ) {
             self.$elem.trigger('toolbarShown');
 
             // lazy load library
-            var e = document.querySelector('#google_language_translator');
-            if(e)
-                e.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+            if(!window.gt_translate_script) {
+                var e = document.querySelector('#google_language_translator');
+                if(e)
+                    e.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+            }
         },
 
         hide: function() {

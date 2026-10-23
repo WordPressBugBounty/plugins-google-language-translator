@@ -2,8 +2,8 @@
 /*
 Plugin Name: Google Language Translator
 Plugin URI: https://gtranslate.io/?xyz=3167
-Version: 7.0.1
-Description: The MOST SIMPLE Google Translator plugin.  This plugin adds Google Translator to your website by using a single shortcode, [google-translator]. Settings include: layout style, hide/show specific languages. Add the shortcode to pages, posts, and widgets.
+Version: 7.0.2
+Description: The MOST SIMPLE Google Translator plugin. This plugin adds Google Translator to your website by using a single shortcode, [google-translator]. Settings include: layout style, hide/show specific languages. Add the shortcode to pages, posts, and widgets.
 Author: Translate AI Multilingual Solutions
 Author URI: https://gtranslate.io
 License: GPLv2 or later
@@ -13,7 +13,7 @@ Text Domain: google-language-translator
 if(!defined('ABSPATH'))
     exit;
 
-define('GLT_VERSION', '7.0.1');
+define('GLT_VERSION', '7.0.2');
 
 include(plugin_dir_path( __FILE__ ) . 'widget.php');
 
@@ -1665,7 +1665,7 @@ class GLT_Notices {
                 // Ensure the notice hasn't been hidden and that the current date is after the start date
                 if ($admin_display_check == 0 and strtotime($admin_display_start) <= strtotime($current_date)) {
                     // Get remaining query string
-                    $query_str = esc_url(add_query_arg($this->prefix . '_admin_notice_ignore', $slug));
+                    $query_str = wp_nonce_url(add_query_arg($this->prefix . '_admin_notice_ignore', $slug), 'glt-dismiss-notice');
 
                     // Admin notice display output
                     echo '<div class="update-nag glt-admin-notice">';
@@ -1705,12 +1705,8 @@ class GLT_Notices {
 
     // Ignore function that gets ran at admin init to ensure any messages that were dismissed get marked
     public function admin_notice_ignore() {
-        // verify nonce
-        if(!isset($_GET['_wpnonce']) or !wp_verify_nonce($_GET['_wpnonce']))
-            return;
-
         // If user clicks to ignore the notice, update the option to not show it again
-        if (isset($_GET[$this->prefix . '_admin_notice_ignore'])) {
+        if(isset($_GET[$this->prefix . '_admin_notice_ignore']) and $this->can_dismiss_notice($_GET[$this->prefix . '_admin_notice_ignore'])) {
             $admin_notices_option = get_option($this->prefix . '_admin_notice', array());
 
             $key = $_GET[$this->prefix . '_admin_notice_ignore'];
@@ -1720,19 +1716,15 @@ class GLT_Notices {
             $admin_notices_option[$key]['dismissed'] = 1;
             update_option($this->prefix . '_admin_notice', $admin_notices_option);
             $query_str = remove_query_arg(array($this->prefix . '_admin_notice_ignore', '_wpnonce'));
-            wp_redirect($query_str);
+            wp_safe_redirect($query_str);
             exit;
         }
     }
 
     // Temp Ignore function that gets ran at admin init to ensure any messages that were temp dismissed get their start date changed
     public function admin_notice_temp_ignore() {
-        // verify nonce
-        if(!isset($_GET['_wpnonce']) or !wp_verify_nonce($_GET['_wpnonce']))
-            return;
-
         // If user clicks to temp ignore the notice, update the option to change the start date - default interval of 14 days
-        if (isset($_GET[$this->prefix . '_admin_notice_temp_ignore'])) {
+        if(isset($_GET[$this->prefix . '_admin_notice_temp_ignore']) and $this->can_dismiss_notice($_GET[$this->prefix . '_admin_notice_temp_ignore'])) {
             $admin_notices_option = get_option($this->prefix . '_admin_notice', array());
             $current_date = current_time("n/j/Y");
             $date_array   = explode('/', $current_date);
@@ -1748,7 +1740,7 @@ class GLT_Notices {
             $admin_notices_option[$key]['dismissed'] = 0;
             update_option($this->prefix . '_admin_notice', $admin_notices_option);
             $query_str = remove_query_arg(array($this->prefix . '_admin_notice_temp_ignore', 'gt_int', '_wpnonce'));
-            wp_redirect( $query_str );
+            wp_safe_redirect($query_str);
             exit;
         }
     }
@@ -1792,6 +1784,13 @@ class GLT_Notices {
         // Intentionally left blank
     }
 
+    private function can_dismiss_notice($key) {
+        if(!current_user_can('manage_options') or !is_string($key) or !in_array($key, array('two_week_review', 'upgrade_tips', 'glt_announcement'), true) or !isset($_GET['_wpnonce']) or !is_string($_GET['_wpnonce']))
+            return false;
+
+        return (bool) wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'glt-dismiss-notice');
+    }
+
     public function glt_admin_notices() {
 
         $deactivate_plugins= array('WP Translator' => 'wptranslator/WPTranslator.php', 'TranslatePress' => 'translatepress-multilingual/index.php', 'Google Website Translator' => 'google-website-translator/google-website-translator.php', 'Weglot' => 'weglot/weglot.php', 'TransPosh' => 'transposh-translation-filter-for-wordpress/transposh.php', 'Advanced Google Translate' => 'advanced-google-translate/advanced-google-translate.php', 'My WP Translate' => 'my-wp-translate/my-wp-translate.php', 'WPML Multilingual CMS' => 'sitepress-multilingual-cms/sitepress.php');
@@ -1828,8 +1827,8 @@ class GLT_Notices {
             );
         }
 
-        $glt_announcement_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'glt_announcement'))));
-        $glt_announcement_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'glt_announcement', 'gt_int' => 2))));
+        $glt_announcement_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'glt_announcement')), 'glt-dismiss-notice'));
+        $glt_announcement_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'glt_announcement', 'gt_int' => 2)), 'glt-dismiss-notice'));
 
         $notices['glt_announcement'] = array(
             'title' => __('Announcement - Google Language Translator', 'google-language-translator'),
@@ -1843,8 +1842,8 @@ class GLT_Notices {
             'int' => 0
         );
 
-        $two_week_review_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'two_week_review'))));
-        $two_week_review_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'two_week_review', 'gt_int' => 6))));
+        $two_week_review_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'two_week_review')), 'glt-dismiss-notice'));
+        $two_week_review_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'two_week_review', 'gt_int' => 6)), 'glt-dismiss-notice'));
 
         $notices['two_week_review'] = array(
             'title' => __('Please Leave a Review', 'google-language-translator'),
@@ -1857,8 +1856,8 @@ class GLT_Notices {
             'int' => 5
         );
 
-        $upgrade_tips_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'upgrade_tips'))));
-        $upgrade_tips_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'upgrade_tips', 'gt_int' => 7))));
+        $upgrade_tips_ignore = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_ignore' => 'upgrade_tips')), 'glt-dismiss-notice'));
+        $upgrade_tips_temp = esc_url(wp_nonce_url(add_query_arg(array($this->prefix . '_admin_notice_temp_ignore' => 'upgrade_tips', 'gt_int' => 7)), 'glt-dismiss-notice'));
 
         if(get_option('googlelanguagetranslator_seo_active') != '1') {
             $notices['upgrade_tips'][] = array(
